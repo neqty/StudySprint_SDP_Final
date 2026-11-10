@@ -22,7 +22,8 @@ public class MainFrame extends JFrame {
     private final JTextArea reportText = new JTextArea();
     private final JTextArea historyText = new JTextArea();
     private final JComboBox<String> strategyPicker = new JComboBox<>(new String[]{"Priority first", "Shortest first"});
-    private final JCheckBox breaksBox = new JCheckBox("Add 5-minute breaks");
+    private final JCheckBox breaksBox = new JCheckBox("Add breaks");
+    private final JComboBox<Integer> breakMinutesPicker = new JComboBox<>(new Integer[]{5, 10});
     private final JCheckBox tipsBox = new JCheckBox("Show study tips");
     private final JComboBox<String> reportTypePicker = new JComboBox<>(new String[]{"Summary", "Detailed"});
     private final JComboBox<String> formatPicker = new JComboBox<>(new String[]{"TXT", "HTML"});
@@ -117,13 +118,15 @@ public class MainFrame extends JFrame {
 
         JTabbedPane tabs = new JTabbedPane();
         JPanel schedulePanel = new JPanel(new BorderLayout(6, 6));
-        JPanel scheduleTools = new JPanel(new GridLayout(2, 1));
-        scheduleTools.add(horizontal(new JLabel("Order:"), strategyPicker, breaksBox, tipsBox));
+        JPanel scheduleTools = new JPanel(new GridLayout(3, 1));
+        scheduleTools.add(horizontal(new JLabel("Order:"), strategyPicker, tipsBox));
+        scheduleTools.add(horizontal(breaksBox, breakMinutesPicker, new JLabel("minutes per task")));
+        breaksBox.addActionListener(e -> breakMinutesPicker.setEnabled(breaksBox.isSelected()));
         scheduleTools.add(horizontal(
             button("Apply options", () -> perform(() -> app.setOptions(
-                (String) strategyPicker.getSelectedItem(), breaksBox.isSelected(), tipsBox.isSelected()))),
+                (String) strategyPicker.getSelectedItem(), breaksBox.isSelected(), tipsBox.isSelected(), (Integer) breakMinutesPicker.getSelectedItem()))),
             button("Generate schedule", () -> perform(() -> {
-                app.setOptions((String) strategyPicker.getSelectedItem(), breaksBox.isSelected(), tipsBox.isSelected());
+                app.setOptions((String) strategyPicker.getSelectedItem(), breaksBox.isSelected(), tipsBox.isSelected(), (Integer) breakMinutesPicker.getSelectedItem());
                 app.generateSchedule();
             }))));
         schedulePanel.add(scheduleTools, BorderLayout.NORTH);
@@ -172,6 +175,8 @@ public class MainFrame extends JFrame {
         }
         strategyPicker.setSelectedItem(plan.getStrategy());
         breaksBox.setSelected(plan.hasBreaks()); tipsBox.setSelected(plan.hasTips());
+        breakMinutesPicker.setSelectedItem(plan.getBreakMinutes());
+        breakMinutesPicker.setEnabled(plan.hasBreaks());
         scheduleText.setText(app.displaySchedule());
         reportText.setText(app.getReport(isDetailed(), isHtml()));
         StringBuilder log = new StringBuilder();

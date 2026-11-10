@@ -94,7 +94,13 @@ public class StudyFacade {
         return task;
     }
     public void setOptions(String strategy, boolean breaks, boolean tips) throws IOException {
+        setOptions(strategy, breaks, tips, current.getBreakMinutes());
+    }
+    public void setOptions(String strategy, boolean breaks, boolean tips, int breakMinutes) throws IOException {
+        if (breakMinutes != 5 && breakMinutes != 10)
+            throw new IllegalArgumentException("Choose a 5- or 10-minute break.");
         current.setStrategy(strategy);
+        current.setBreakMinutes(breakMinutes);
         current.setBreaksEnabled(breaks); current.setTipsEnabled(tips);
         current.getSessions().clear(); changed("Changed schedule options");
     }

@@ -9,6 +9,7 @@ public class StudyPlan {
     private String strategy;
     private boolean breaksEnabled;
     private boolean tipsEnabled;
+    private int breakMinutes = 5;
     private final List<StudyTask> tasks = new ArrayList<>();
     private final List<StudySession> sessions = new ArrayList<>();
 
@@ -33,6 +34,12 @@ public class StudyPlan {
     }
     public boolean hasBreaks() { return breaksEnabled; }
     public void setBreaksEnabled(boolean value) { breaksEnabled = value; }
+    public int getBreakMinutes() { return breakMinutes; }
+    public void setBreakMinutes(int value) {
+        if (value != 5 && value != 10)
+            throw new IllegalArgumentException("Choose a 5- or 10-minute break.");
+        breakMinutes = value;
+    }
     public boolean hasTips() { return tipsEnabled; }
     public void setTipsEnabled(boolean value) { tipsEnabled = value; }
     public List<StudyTask> getTasks() { return tasks; }
