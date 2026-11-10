@@ -24,6 +24,9 @@ public class PlanRepository {
         for (StudyPlan p : plans) {
             data.append(String.join("\t", "PLAN", p.getId(), encoded(p.getName()),
                 encoded(p.getStrategy()), String.valueOf(p.hasBreaks()), String.valueOf(p.hasTips()))).append("\n");
+            // Optional record: old V1 plans have no duration and retain the 5-minute default.
+            data.append("BREAK_MINUTES\t").append(p.getId()).append("\t")
+                .append(p.getBreakMinutes()).append("\n");
             for (StudyTask t : p.getTasks()) {
                 data.append(String.join("\t", "TASK", p.getId(), t.getId(), t.getType(), encoded(t.getTitle()),
                     encoded(t.getSubject()), String.valueOf(t.getMinutes()), String.valueOf(t.getPriority()),
@@ -60,6 +63,12 @@ public class PlanRepository {
             }
             for (String line : lines) {
                 String[] a = line.split("\t", -1);
+                if (a[0].equals("BREAK_MINUTES")) {
+                    if (a.length != 3) throw new IllegalArgumentException("Invalid break duration record.");
+                    StudyPlan plan = plans.get(a[1]);
+                    if (plan == null) throw new IllegalArgumentException("Break duration references missing plan.");
+                    plan.setBreakMinutes(Integer.parseInt(a[2]));
+                }
                 if (a[0].equals("TASK") && a.length == 10) {
                     StudyPlan plan = plans.get(a[1]);
                     if (plan == null) throw new IllegalArgumentException("Task references missing plan.");

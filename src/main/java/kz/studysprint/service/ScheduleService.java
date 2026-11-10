@@ -17,7 +17,10 @@ public class ScheduleService {
     }
     public SessionText decorate(StudyPlan plan, StudyTask task) {
         SessionText session = new BasicSessionText(task);
-        if (plan.hasBreaks()) session = new BreakDecorator(session);
+        if (plan.hasBreaks()) {
+            session = plan.getBreakMinutes() == 10
+                ? new LongBreakDecorator(session) : new BreakDecorator(session);
+        }
         if (plan.hasTips()) session = new TipDecorator(session, task);
         return session;
     }
