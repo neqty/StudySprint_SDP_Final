@@ -41,10 +41,20 @@ public class StudyFacade {
         }
         current = plans.get(0);
     }
-    public void addObserver(PlanObserver observer) { observers.add(observer); }
+    /** Registers a non-null observer once, preserving notification order. */
+    public void addObserver(PlanObserver observer) {
+        Objects.requireNonNull(observer, "Observer must not be null.");
+        if (!observers.contains(observer)) observers.add(observer);
+    }
+    public void removeObserver(PlanObserver observer) { observers.remove(observer); }
+
+    // Subscription changes inside a callback take effect on the next event.
+    private void notifyObservers(String message) {
+        for (PlanObserver observer : new ArrayList<>(observers)) observer.onPlanChanged(message);
+    }
     private void changed(String message) throws IOException {
         repository.save(plans);
-        for (PlanObserver observer : observers) observer.onPlanChanged(message);
+        notifyObservers(message);
     }
     public List<StudyPlan> getPlans() { return new ArrayList<>(plans); }
     public StudyPlan getCurrent() { return current; }
@@ -115,6 +125,6 @@ public class StudyFacade {
     }
     public void saveReport(Path file, boolean detailed, boolean html) throws IOException {
         Files.writeString(file, getReport(detailed, html), StandardCharsets.UTF_8);
-        for (PlanObserver observer : observers) observer.onPlanChanged("Exported report: " + file.getFileName());
+        notifyObservers("Exported report: " + file.getFileName());
     }
 }

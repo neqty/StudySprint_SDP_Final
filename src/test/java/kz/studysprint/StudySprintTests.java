@@ -6,6 +6,7 @@ import kz.studysprint.patterns.builder.StudyPlanBuilder;
 import kz.studysprint.patterns.factory.TaskCreators;
 import kz.studysprint.patterns.adapter.*;
 import kz.studysprint.patterns.observer.ActivityHistory;
+import kz.studysprint.patterns.observer.PlanObserver;
 import kz.studysprint.service.ScheduleService;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
@@ -78,6 +79,76 @@ public class StudySprintTests {
         StudyFacade again = new StudyFacade(saved);
         again.selectPlan(restarted.getCurrent().getId());
         check(again.getCurrent().getTasks().size() == 3, "edits and deletes persist");
+        testObserverLifecycle(directory);
         System.out.println("ALL " + passed + " TESTS PASSED");
     }
+    private static void testObserverLifecycle(Path directory) throws Exception {
+        Path saved = directory.resolve("observer-data.txt");
+        StudyFacade app = new StudyFacade(saved);
+        ActivityHistory history = new ActivityHistory();
+        app.addObserver(history);
+        app.addObserver(history);
+        app.renamePlan("Observer tests");
+        check(history.getMessages().size() == 1, "duplicate subscription sends only one event");
+        app.removeObserver(history);
+        app.removeObserver(history);
+        app.renamePlan("Unsubscribed");
+        check(history.getMessages().size() == 1, "removed observer receives no further events");
+        boolean nullRejected = false;
+        try { app.addObserver(null); } catch (NullPointerException e) { nullRejected = true; }
+        check(nullRejected, "null observer rejected at registration");
+
+        int[] calls = {0};
+        PlanObserver selfRemoving = new PlanObserver() {
+            @Override public void onPlanChanged(String message) {
+                calls[0]++;
+                app.removeObserver(this);
+                app.addObserver(history);
+            }
+        };
+        ActivityHistory remaining = new ActivityHistory();
+        app.addObserver(selfRemoving);
+        app.addObserver(remaining);
+        app.renamePlan("First event");
+        check(calls[0] == 1 && remaining.getMessages().size() == 1
+            && history.getMessages().size() == 1, "callbacks can change subscriptions without skipping observers");
+        app.renamePlan("Second event");
+        check(calls[0] == 1 && remaining.getMessages().size() == 2
+            && history.getMessages().size() == 2, "subscription changes apply on the next event");
+
+        boolean[] persisted = {false};
+        PlanObserver persistenceCheck = message -> {
+            try {
+                persisted[0] = new StudyFacade(saved).getCurrent().getName().equals("Saved first");
+            } catch (IOException e) { throw new AssertionError(e); }
+        };
+        app.addObserver(persistenceCheck);
+        app.renamePlan("Saved first");
+        check(persisted[0], "facade saves data before notifying observers");
+        app.removeObserver(persistenceCheck);
+
+        app.addObserver(selfRemoving);
+        Path report = directory.resolve("observer-report.txt");
+        app.saveReport(report, false, false);
+        check(calls[0] == 2 && Files.exists(report)
+            && remaining.getMessages().get(3).equals("Exported report: observer-report.txt"),
+            "report export uses the same safe notification path");
+        int before = remaining.getMessages().size();
+        boolean failed = false;
+        try { app.saveReport(directory, false, false); } catch (IOException e) { failed = true; }
+        check(failed && remaining.getMessages().size() == before, "failed export sends no success event");
+        Files.delete(saved);
+        Files.createDirectory(saved);
+        failed = false;
+        try { app.renamePlan("Cannot save"); } catch (IOException e) { failed = true; }
+        check(failed && remaining.getMessages().size() == before, "failed persistence sends no success event");
+
+        ActivityHistory bounded = new ActivityHistory();
+        for (int i = 0; i < 35; i++) bounded.onPlanChanged("Event " + i);
+        check(bounded.getMessages().size() == 30 && bounded.getMessages().get(0).equals("Event 5"),
+            "history retains the latest 30 events in order");
+        bounded.getMessages().clear();
+        check(bounded.getMessages().size() == 30, "history cannot be modified through its returned list");
+    }
+
 }
